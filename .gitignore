@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Benchmark outputs
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
