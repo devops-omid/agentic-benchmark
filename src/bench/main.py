@@ -1,7 +1,15 @@
 """Benchmark CLI: --smoke does one request; default runs the matrix and writes the report."""
 
-import argparse, asyncio, os, sys
+import sys
 from pathlib import Path
+
+if __package__ is None:  # direct script run (python src/bench/main.py): re-execute as bench.main
+    import runpy
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    runpy.run_module("bench.main", run_name="__main__")
+    raise SystemExit(0)
+
+import argparse, asyncio, os
 
 import httpx, yaml
 from dotenv import load_dotenv
