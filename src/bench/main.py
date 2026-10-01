@@ -9,7 +9,7 @@ if __package__ is None:  # direct script run (python src/bench/main.py): re-exec
     runpy.run_module("bench.main", run_name="__main__")
     raise SystemExit(0)
 
-import argparse, asyncio, os
+import argparse, asyncio, os, time
 
 import httpx, yaml
 from dotenv import load_dotenv
@@ -18,6 +18,7 @@ from .client import request_completion
 from .prompts import filler_prompt
 from .report import write_report
 from .runner import run_benchmark
+from .ui import BenchTUI
 
 SMOKE_TARGET = 256
 
@@ -48,8 +49,15 @@ def main() -> int:
     if args.smoke:
         asyncio.run(_smoke(cfg, api_key))
     else:
-        cells, warmups = asyncio.run(run_benchmark(cfg, api_key))
+        bench = cfg["benchmark"]
+        tui = BenchTUI(bench["context_sizes"], bench["concurrency_levels"], bench["requests_per_cell"],
+                       plain=not sys.stdout.isatty())
+        t0 = time.monotonic()
+        with tui.live():
+            cells, warmups = asyncio.run(run_benchmark(cfg, api_key, on_request=tui.on_request, on_cell=tui.on_cell))
+            tui.finish()
         d = write_report(report_dir, cells, warmups, model["id"], model["endpoint"])
+        print(tui.finish_line(time.monotonic() - t0))
         print(f"report: {d}")
     return 0
 
