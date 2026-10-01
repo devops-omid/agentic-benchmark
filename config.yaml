@@ -6,8 +6,8 @@ model:
   id: qwen3.8-27b
   endpoint: http://192.168.1.110:18020/v1/
   options:
-    enable_thinking: false     # keep off for clean PP/TG; set true (+ thinking_budget) to test reasoning
-    # thinking_budget: 32768
+    chat_template_kwargs:
+      enable_thinking: false   # top-level enable_thinking is ignored by the server; true (or removed) benchmarks thinking (streamed as `reasoning` deltas)
 
 benchmark:
   context_sizes: [1024, 4096, 8192, 16384, 32768]   # target prompt tokens

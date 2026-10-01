@@ -72,7 +72,7 @@ async def request_completion(
                         choices = payload.get("choices")
                         first = choices[0] if isinstance(choices, list) and choices else None
                         delta = first.get("delta") if isinstance(first, dict) else None
-                        if isinstance(delta, dict) and delta.get("content"):
+                        if isinstance(delta, dict) and any(delta.get(k) for k in ("content", "reasoning", "reasoning_content")):
                             now = time.perf_counter()
                             if t_first is None:
                                 t_first = now

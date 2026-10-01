@@ -19,8 +19,8 @@ Aggregated per cell: mean / p50 / p95 / p99 TTFT, mean PP, mean TG, aggregate ou
 ## Method
 - Streaming chat completions: `POST /chat/completions` with `stream: true` and
   `stream_options: { include_usage: true }` so the final SSE chunk carries token usage.
-- **Thinking off** (`enable_thinking: false`, exposed as a config flag) so reasoning tokens
-  don't inflate TTFT/TG. Re-enable via config if we want to benchmark with thinking.
+- **Thinking off** via `chat_template_kwargs: {enable_thinking: false}` in config (top-level flag is
+  ignored by this server); when on, reasoning streams as `reasoning` deltas and is counted in TTFT/TG.
 - Deterministic filler prompts sized to a target token count (repeated text); verified against
   server-reported `usage.prompt_tokens`. Max context capped at model input limit (32768).
 - Per cell: `warmup` requests (1) to prime the server, then `requests_per_cell` measured requests,
