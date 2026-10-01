@@ -1,8 +1,9 @@
-"""Benchmark matrix runner: per-context-size warmup, semaphore-bounded cells, hard per-request deadline."""
+"""Benchmark matrix runner: per-context-size warmup, semaphore-bounded cells, hard per-request deadline, progress callbacks."""
 
 import asyncio
 import time
 from dataclasses import dataclass, field
+from typing import Callable
 
 import httpx
 
@@ -35,7 +36,12 @@ async def _cell_request(sem, coro, size, conc, deadline):
         return await _deadline(coro, size, conc, False, deadline)
 
 
-async def run_benchmark(cfg: dict, api_key: str) -> tuple[list[CellResult], list[RequestResult]]:
+async def run_benchmark(
+    cfg: dict,
+    api_key: str,
+    on_request: Callable | None = None,
+    on_cell: Callable | None = None,
+) -> tuple[list[CellResult], list[RequestResult]]:
     model = cfg["model"]
     bench = cfg["benchmark"]
     deadline = bench["timeout_seconds"] * (bench["retries"] + 1) + 30
@@ -48,14 +54,27 @@ async def run_benchmark(cfg: dict, api_key: str) -> tuple[list[CellResult], list
                                  timeout=httpx.Timeout(bench["timeout_seconds"], connect=10.0)) as client:
         for size in bench["context_sizes"]:
             prompt = prompts.setdefault(size, filler_prompt(size))
-            warmups.append(await _deadline(_req(client, prompt, size, 1, True, common), size, 1, True, deadline))
+            w = await _deadline(_req(client, prompt, size, 1, True, common), size, 1, True, deadline)
+            warmups.append(w)
+            if on_request:
+                on_request(size, None, len(warmups), len(bench["context_sizes"]), w)
             for conc in bench["concurrency_levels"]:
                 t0 = time.perf_counter()
                 sem = asyncio.Semaphore(conc)
-                results = await asyncio.gather(
-                    *(_cell_request(sem, _req(client, prompt, size, conc, False, common), size, conc, deadline)
-                      for _ in range(bench["requests_per_cell"])))
+                n = bench["requests_per_cell"]
+                done = 0
+
+                async def tracked(size=size, conc=conc):
+                    nonlocal done
+                    r = await _cell_request(sem, _req(client, prompt, size, conc, False, common), size, conc, deadline)
+                    done += 1
+                    if on_request:
+                        on_request(size, conc, done, n, r)
+                    return r
+
+                results = await asyncio.gather(*(tracked() for _ in range(n)))
                 wall_s = time.perf_counter() - t0
                 cells.append(CellResult(size, conc, wall_s, results))
-                print(f"{size} tok x{conc}: {wall_s:.1f}s, {sum(r.ok for r in results)}/{len(results)} ok", flush=True)
+                if on_cell:
+                    on_cell(size, conc, wall_s, sum(r.ok for r in results), n)
     return cells, warmups
