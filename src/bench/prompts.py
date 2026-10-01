@@ -1,6 +1,6 @@
 """Deterministic filler prompts sized by characters to approximate a target token count."""
 
-CHARS_PER_TOKEN = 3.6
+CHARS_PER_TOKEN = 4.4
 FILLER_SENTENCE = "The quick brown fox jumps over the lazy dog near the riverbank."
 
 
